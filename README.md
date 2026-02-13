@@ -96,7 +96,44 @@ kubectl -n pra port-forward svc/flask 8080:80 >/tmp/web.log 2>&1 &
 ---------------------------------------------------  
 ### Processus de sauvegarde de la BDD SQLite
 
-Grâce à une tâche CRON (déployé par Ansible sur le cluster Kubernetes), toutes les minutes une sauvegarde de la BDD SQLite est faite du PVC pra-data vers le PCV pra-backup dans Kubernetes.  
+Grâce à une tâche CRON déployée par Ansible sur le cluster Kubernetes (un CronJob), toutes les minutes une sauvegarde de la BDD SQLite est faite depuis le PVC pra-data vers le PCV pra-backup dans Kubernetes.  
+
+Pour visualiser les sauvegardes périodiques déposées dans le PVC pra-backup, coller les commandes suivantes dans votre terminal Codespace :  
+
+```
+kubectl -n pra run debug-backup \
+  --rm -it \
+  --image=alpine \
+  --overrides='
+{
+  "spec": {
+    "containers": [{
+      "name": "debug",
+      "image": "alpine",
+      "command": ["sh"],
+      "stdin": true,
+      "tty": true,
+      "volumeMounts": [{
+        "name": "backup",
+        "mountPath": "/backup"
+      }]
+    }],
+    "volumes": [{
+      "name": "backup",
+      "persistentVolumeClaim": {
+        "claimName": "pra-backup"
+      }
+    }]
+  }
+}'
+```
+```
+ls -lh /backup
+```
+**Pour sortir du cluster et revenir dans le terminal**
+```
+exit
+```
 
 ---------------------------------------------------
 Séquence 4 : Documentation  
