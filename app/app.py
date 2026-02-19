@@ -5,7 +5,6 @@ from flask import Flask, jsonify, request
 import glob
 import time
 
-DB_PATH = os.getenv("DB_PATH", "/data/app.db")
 DB_PATH = os.environ.get("DB_PATH", "/data/app.db")
 BACKUP_DIR = os.environ.get("BACKUP_DIR", "/backup")
 
