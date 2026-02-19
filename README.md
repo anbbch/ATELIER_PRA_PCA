@@ -156,6 +156,8 @@ Copier/coller le code suivant dans votre terminal Codespace pour détruire votre
 ```
 kubectl -n pra get pods
 ```
+<img width="957" height="214" alt="image" src="https://github.com/user-attachments/assets/f074e6e1-3455-4dfa-83a8-cb64e9f7cd2a" />
+
 Notez le nom de votre pod qui est différent pour tout le monde.  
 Supprimez votre pod (pensez à remplacer <nom-du-pod-flask> par le nom de votre pod).  
 Exemple : kubectl -n pra delete pod flask-7c4fd76955-abcde  
