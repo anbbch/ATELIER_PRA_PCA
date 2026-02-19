@@ -102,8 +102,14 @@ def get_count():
     conn.close()
     return count
 
+
+# ---------- Status (Atelier 1) ----------
+
 def get_last_backup_info():
-    files = glob.glob(os.path.join(BACKUP_DIR, "*.db"))
+    # on cherche les backups dans /backup (PVC pra-backup si monté)
+    pattern = os.path.join(BACKUP_DIR, "*.db")
+    files = glob.glob(pattern)
+
     if not files:
         return None, None
 
@@ -111,26 +117,26 @@ def get_last_backup_info():
     age_seconds = int(time.time() - os.path.getmtime(last_file))
     return os.path.basename(last_file), age_seconds
 
+
 @app.get("/status")
 def status():
-    try:
-        count = get_count()
-    except Exception as e:
-        # si la table ne s'appelle pas "events" ou db inaccessible
-        return jsonify({
-            "error": str(e),
-            "count": None,
-            "last_backup_file": None,
-            "backup_age_seconds": None
-        }), 500
+    init_db()
 
-    last_file, age = get_last_backup_info()
+    # count en base
+    conn = get_conn()
+    cur = conn.execute("SELECT COUNT(*) FROM events")
+    n = cur.fetchone()[0]
+    conn.close()
 
-    return jsonify({
-        "count": count,
-        "last_backup_file": last_file,
-        "backup_age_seconds": age
-    })
+    # infos backup
+    last_backup_file, backup_age_seconds = get_last_backup_info()
+
+    return jsonify(
+        count=n,
+        last_backup_file=last_backup_file,
+        backup_age_seconds=backup_age_seconds
+    )
+
 
 
 # ---------- Main ----------
