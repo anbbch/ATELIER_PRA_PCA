@@ -164,18 +164,26 @@ Exemple : kubectl -n pra delete pod flask-7c4fd76955-abcde
 ```
 kubectl -n pra delete pod <nom-du-pod-flask>
 ```
+<img width="1271" height="58" alt="image" src="https://github.com/user-attachments/assets/b43603ef-1e50-4c0b-a2cc-5adf1ede3f33" />
+
 **Vérification de la suppression de votre pod**
 ```
 kubectl -n pra get pods
 ```
+<img width="1024" height="210" alt="image" src="https://github.com/user-attachments/assets/b6578b83-8ec0-49fe-9274-1245078c781b" />
+
 👉 **Le pod a été reconstruit sous un autre identifiant**.  
 Forward du port 8080 du nouveau service  
 ```
 kubectl -n pra port-forward svc/flask 8080:80 >/tmp/web.log 2>&1 &
 ```
+<img width="1519" height="120" alt="image" src="https://github.com/user-attachments/assets/deb592f2-4476-4449-9f94-a36a8bcb7058" />
+
 Observez le résultat en ligne  
 https://...**/consultation** -> Vous n'avez perdu aucun message.
-  
+
+<img width="1883" height="296" alt="image" src="https://github.com/user-attachments/assets/d33c6644-dff3-41de-b03d-428bf79a0446" />
+
 👉 Kubernetes gère tout seul : Aucun impact sur les données ou sur votre service (PVC conserve la DB et le pod est reconstruit automatiquement) -> **C'est du PCA**. Tout est automatique et il n'y a aucune rupture de service.
   
 ---------------------------------------------------
@@ -202,6 +210,10 @@ kubectl -n pra delete pvc pra-data
 ```
 👉 Vous pouvez vérifier votre application en ligne, la base de données est détruite et la service n'est plus accéssible.  
 
+<img width="1565" height="294" alt="image" src="https://github.com/user-attachments/assets/b06ac1d4-6591-43a4-bac3-e8435416d512" />
+<img width="1640" height="894" alt="image" src="https://github.com/user-attachments/assets/82e99d95-1142-48c7-9279-92a4c4c11ef2" />
+
+
 ✅ **PHASE 2 — Procédure de restauration**  
 Recréer l’infrastructure avec un PVC pra-data vide.  
 ```
@@ -212,8 +224,13 @@ Forward du port 8080 du service pour tester l'application en ligne.
 ```
 kubectl -n pra port-forward svc/flask 8080:80 >/tmp/web.log 2>&1 &
 ```
+<img width="1536" height="310" alt="image" src="https://github.com/user-attachments/assets/04c31d57-3309-4790-9547-850563eb53c2" />
+
 https://...**/count** -> =0.  
+<img width="1165" height="317" alt="image" src="https://github.com/user-attachments/assets/8dab2d8b-41da-40df-9ed1-5d013d3e5ca8" />
+
 https://...**/consultation** Vous avez perdu tous vos messages.  
+<img width="1075" height="272" alt="image" src="https://github.com/user-attachments/assets/5365d157-a2f2-40e6-b1d2-adc28590ddd6" />
 
 Retaurez votre BDD depuis le PVC Backup.  
 ```
@@ -237,27 +254,112 @@ Faites preuve de pédagogie et soyez clair dans vos explications et procedures d
 **Exercice 1 :**  
 Quels sont les composants dont la perte entraîne une perte de données ?  
   
-*..Répondez à cet exercice ici..*
+Dans cette architecture, les données persistantes donc les messages de l’application, sont stockées dans un fichier SQLite situé dans le volume monté sur /data.
+Les composants dont la perte entraîne une perte de données sont :
+
+1) Le PVC pra-data:
+  - C’est le volume persistant qui contient le fichier SQLite (/data/app.db).
+  - Si ce PVC est supprimé, la base SQLite est supprimée aussi.
+
+2) Le PVC pra-backup
+  - C’est le volume persistant qui contient les sauvegardes générées par le CronJob.
+  - Si ce PVC est supprimé, on perd l’historique des backups.
+  - Donc on perd la capacité de restaurer en cas de sinistre.
+
+3) Ici, le disque du node
+  les PVC reposent sur le stockage local du cluster (disque du node). Donc si le node disparaît ou est recréé → les volumes disparaissent aussi.
 
 **Exercice 2 :**  
 Expliquez nous pourquoi nous n'avons pas perdu les données lors de la supression du PVC pra-data  
   
-*..Répondez à cet exercice ici..*
+Lorsqu’on supprime le Pod Flask, on ne supprime pas les données, car :
+
+1) La base SQLite n’est pas stockée dans le Pod :
+  - Le Pod est éphémère
+  - Les données applicatives ne sont pas stockées dans son filesystem interne
+
+2) La base SQLite est stockée dans un PVC
+Le fichier app.db est stocké dans le volume persistant pra-data monté sur /data.
+
+Donc, même si le Pod est détruit :
+  - Kubernetes recrée automatiquement un nouveau Pod (grâce au Deployment)
+  - Le nouveau Pod remonte le même PVC
+  - La base SQLite est retrouvée intacte
+
+Ainsi la suppression du Pod n’entraîne pas de perte de données, car les données sont dans un stockage persistant (PVC), séparé du Pod.
 
 **Exercice 3 :**  
 Quels sont les RTO et RPO de cette solution ?  
   
-*..Répondez à cet exercice ici..*
+Le RTO (Recovery Time Objective) correspond au temps maximum acceptable pour restaurer le service.
+Ici :
+  - Si le Pod crash et Kubernetes le recrée automatiquement en quelques secondes
+  - Le service redevient donc disponible très vite
+RTO PCA (perte du pod) : ~ quelques secondes (temps de recréation du Pod)
+
+Le RPO (Recovery Point Objective) correspond à la quantité maximale de données qu’on accepte de perdre.
+Ici, la sauvegarde est faite par CronJob toutes les minutes :
+  - RPO PRA (perte du PVC pra-data) : ~ 1 minute car on restaure depuis la dernière sauvegarde
 
 **Exercice 4 :**  
 Pourquoi cette solution (cet atelier) ne peux pas être utilisé dans un vrai environnement de production ? Que manque-t-il ?   
   
-*..Répondez à cet exercice ici..*
+Cette solution est pédagogique mais pas production-ready pour plusieurs raisons :
+1) SQLite n’est pas adapté à Kubernetes en production
+  - SQLite est un fichier local
+  - Risque de corruption en cas d’écriture concurrente
+  - Pas fait pour plusieurs pods
+
+2) Le stockage est local au node
+Dans ce TP, les volumes sont sur le disque du node :
+  - Si le node est perdu → les PVC sont perdus
+  - En production, il faut du stockage réseau (type NFS, Ceph, EBS, Azure Disk, etc.)
+
+3) Pas de haute disponibilité (HA)
+  - 1 seul pod Flask
+  - 1 seule base SQLite
+Si il y a plusieurs replicas alors SQLite devient un problème
+
+4) Sauvegarde “artisanale”
+  - Copier un fichier .db est fragile
+  - Pas de gestion de cohérence (verrouillage SQLite, snapshot cohérent, etc.)
+  - Pas de chiffrement
+  - Pas de rétention (combien de backups ?)
+
+5) Pas de monitoring / alerting
+  - Aucun système d’alertes si le CronJob échoue
+  - Aucun log centralisé
+  - Pas de supervision
   
 **Exercice 5 :**  
 Proposez une archtecture plus robuste.   
   
-*..Répondez à cet exercice ici..*
+Voici une architecture beaucoup plus robuste et réaliste pour une production :
+
+1) Base de données dédiée (PostgreSQL ou MySQL)
+  - Déployée en cluster (ou service managé : RDS/Azure Database)
+  - Faire une réplication
+  - Backups intégrés
+  - Point-in-time recovery possible
+
+2) Application Flask stateless (plusieurs pods)
+  - Plusieurs replicas (ex: 2 ou 3)
+  - Load balancing via Service / Ingress
+  - Auto-scaling possible
+
+3) Stockage persistant réseau
+  - Pour les fichiers (uploads, etc.)
+  - Avec une StorageClass robuste (EBS, Azure Disk, Ceph…)
+
+4) Backup & restore professionnel
+  - Backup DB via outils dédiés (pg_dump, WAL, snapshots)
+  - Stockage des backups hors cluster (S3, Blob Storage)
+  - Politique de rétention (7 jours / 30 jours…)
+
+5) Observabilité
+  - Logs centralisés (ELK, Loki)
+  - Monitoring (Prometheus/Grafana)
+  - Alerting (Slack/email)
 
 ---------------------------------------------------
 Séquence 6 : Ateliers  
