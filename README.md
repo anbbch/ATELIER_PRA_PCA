@@ -92,7 +92,11 @@ kubectl -n pra port-forward svc/flask 8080:80 >/tmp/web.log 2>&1 &
 3. https://...**/add?message=test** pour ajouter un message dans votre base de données SQLite.
 4. https://...**/count** pour afficher le nombre de messages stockés dans votre base de données SQLite.
 5. https://...**/consultation** pour afficher les messages stockés dans votre base de données.
-  
+
+<img width="1823" height="247" alt="image" src="https://github.com/user-attachments/assets/9a560e99-c773-41d0-ae5e-83e3beb18ecf" />
+<img width="2237" height="1107" alt="image" src="https://github.com/user-attachments/assets/8f6a418d-8571-4c80-a607-c8046478a58c" />
+
+
 ---------------------------------------------------  
 ### Processus de sauvegarde de la BDD SQLite
 
